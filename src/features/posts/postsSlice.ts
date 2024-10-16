@@ -13,7 +13,7 @@ export type Post = {
   id: string;
   title: string;
   body: string;
-  userId?: string;
+  userId?: number;
   date: string;
   reactions: {
     thumbsUp: number;
@@ -66,6 +66,46 @@ export const addNewPost = createAsyncThunk(
   }
 );
 
+export const updatePost = createAsyncThunk(
+  "posts/updatePost",
+  async (initialPost: {
+    id: string;
+    title: string;
+    body: string;
+    reactions: Post["reactions"];
+    userId: number;
+  }) => {
+    const { id } = initialPost;
+    try {
+      const response = await axios.put(`${POSTS_URL}/${id}`, initialPost);
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        // return error.message;
+        // Only for this specific use case
+        return initialPost;
+      }
+    }
+  }
+);
+
+export const deletePost = createAsyncThunk(
+  "posts/deletePost",
+  async (initialPost: { id: string }) => {
+    const { id } = initialPost;
+    try {
+      const response = await axios.delete(`${POSTS_URL}/${id}`);
+      if (response?.status === 200) return initialPost;
+      return `${response.status}: ${response.statusText}`;
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return error.message;
+      }
+    }
+  }
+);
+
 export const postsSlice = createSlice({
   name: "posts",
   initialState,
@@ -74,7 +114,7 @@ export const postsSlice = createSlice({
       reducer(state, action: PayloadAction<Post>) {
         state.posts.push(action.payload);
       },
-      prepare(title: string, body: string, userId: string) {
+      prepare(title: string, body: string, userId: number) {
         return {
           payload: {
             id: nanoid(),
@@ -142,6 +182,27 @@ export const postsSlice = createSlice({
         };
         console.log(action.payload);
         state.posts.push(action.payload);
+      })
+      .addCase(updatePost.fulfilled, (state, action) => {
+        if (!action.payload?.id) {
+          console.log("Update could not be completed");
+          console.log(action.payload);
+          return;
+        }
+        const { id } = action.payload;
+        action.payload.date = new Date().toISOString();
+        const posts = state.posts.filter((post) => post.id !== id);
+        state.posts = [...posts, action.payload];
+      })
+      .addCase(deletePost.fulfilled, (state, action) => {
+        if (!action.payload?.id) {
+          console.log("Delete could not be completed");
+          console.log(action.payload);
+          return;
+        }
+        const { id } = action.payload;
+        const posts = state.posts.filter((post) => post.id !== id);
+        state.posts = posts;
       });
   },
 });
@@ -150,6 +211,10 @@ export const { postAdded, reactionAdded } = postsSlice.actions;
 
 export const selectAllPosts = (state: { posts: PostState }) =>
   state.posts.posts;
+
+export const selectPostById = (state: { posts: PostState }, postId: string) => {
+  return state.posts.posts.find((post) => String(post.id) === postId);
+};
 
 export const getPostsStatus = (state: { posts: PostState }) =>
   state.posts.status;
