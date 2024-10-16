@@ -16,7 +16,7 @@ export const SinglePostPage = () => {
       </section>
     );
   }
-  
+
   return (
     <article>
       <h3>{post.title}</h3>

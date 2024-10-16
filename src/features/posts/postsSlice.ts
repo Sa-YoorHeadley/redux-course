@@ -194,7 +194,7 @@ export const { increaseCount, reactionAdded } = postsSlice.actions;
 
 export const {
   selectAll: selectAllPosts,
-  selectById: selectPostsById,
+  selectById: selectPostById,
   selectIds: selectPostIds,
 } = postsAdapter.getSelectors((state: { posts: PostState }) => state.posts);
 
