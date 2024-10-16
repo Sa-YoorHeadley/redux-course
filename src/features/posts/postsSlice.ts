@@ -1,10 +1,18 @@
-import { createSlice, nanoid, PayloadAction } from "@reduxjs/toolkit";
+import {
+  createSlice,
+  nanoid,
+  PayloadAction,
+  createAsyncThunk,
+} from "@reduxjs/toolkit";
+import axios from "axios";
 import { sub } from "date-fns";
 
-export type PostState = {
+const POSTS_URL = "https://jsonplaceholder.typicode.com/posts";
+
+export type Post = {
   id: string;
   title: string;
-  content: string;
+  body: string;
   userId?: string;
   date: string;
   reactions: {
@@ -16,54 +24,62 @@ export type PostState = {
   };
 };
 
-export type ReactionPayloadType = {
-  postId: string;
-  reaction: "thumbsUp" | "wow" | "heart" | "rocket" | "coffee" ;
+export type PostState = {
+  posts: Post[];
+  status: "idle" | "loading" | "succeeded" | "failed";
+  error?: null | string;
 };
 
-const initialState: PostState[] = [
-  {
-    id: "1",
-    title: "Learning Redux Toolkit",
-    content: "I've heard goof things.",
-    date: sub(new Date(), { minutes: 10 }).toISOString(),
-    reactions: {
-      thumbsUp: 0,
-      wow: 0,
-      heart: 0,
-      rocket: 0,
-      coffee: 0,
-    },
-  },
-  {
-    id: "2",
-    title: "Slices ...",
-    content: "The more I say slice, the more I want pizza.",
-    date: sub(new Date(), { minutes: 15 }).toISOString(),
-    reactions: {
-      thumbsUp: 0,
-      wow: 0,
-      heart: 0,
-      rocket: 0,
-      coffee: 0,
-    },
-  },
-];
+export type ReactionPayloadType = {
+  postId: string;
+  reaction: "thumbsUp" | "wow" | "heart" | "rocket" | "coffee";
+};
+
+const initialState: PostState = {
+  posts: [],
+  status: "idle",
+  error: null,
+};
+
+export const fetchPosts = createAsyncThunk("posts/fetchPosts", async () => {
+  try {
+    const response = await axios.get(POSTS_URL);
+    return response.data;
+  } catch (error) {
+    if (error instanceof Error) {
+      return error.message;
+    }
+  }
+});
+
+export const addNewPost = createAsyncThunk(
+  "posts/addNewPost",
+  async (initialPost: { title: string; body: string; userId: string }) => {
+    try {
+      const response = await axios.post(POSTS_URL, initialPost);
+      return response.data;
+    } catch (error) {
+      if (error instanceof Error) {
+        return error.message;
+      }
+    }
+  }
+);
 
 export const postsSlice = createSlice({
   name: "posts",
   initialState,
   reducers: {
     postAdded: {
-      reducer(state, action: PayloadAction<PostState>) {
-        state.push(action.payload);
+      reducer(state, action: PayloadAction<Post>) {
+        state.posts.push(action.payload);
       },
-      prepare(title, content, userId) {
+      prepare(title: string, body: string, userId: string) {
         return {
           payload: {
             id: nanoid(),
             title,
-            content,
+            body,
             userId,
             date: new Date().toISOString(),
             reactions: {
@@ -79,16 +95,65 @@ export const postsSlice = createSlice({
     },
     reactionAdded(state, action: PayloadAction<ReactionPayloadType>) {
       const { postId, reaction } = action.payload;
-      const existingPost = state.find((post) => post.id === postId);
+      const existingPost = state.posts.find((post) => post.id === postId);
       if (existingPost) {
         existingPost.reactions[reaction]++;
       }
     },
   },
+  extraReducers(builder) {
+    builder
+      .addCase(fetchPosts.pending, (state) => {
+        state.status = "loading";
+      })
+      .addCase(fetchPosts.fulfilled, (state, action) => {
+        state.status = "succeeded";
+
+        // Add date and reactions
+        let min = 1;
+        const loadedPosts = action.payload.map((post: Post) => {
+          post.date = sub(new Date(), { minutes: min++ }).toISOString();
+          post.reactions = {
+            thumbsUp: 0,
+            wow: 0,
+            heart: 0,
+            rocket: 0,
+            coffee: 0,
+          };
+
+          return post;
+        });
+
+        state.posts = state.posts.concat(loadedPosts);
+      })
+      .addCase(fetchPosts.rejected, (state, action) => {
+        state.status = "failed";
+        state.error = action.error.message;
+      })
+      .addCase(addNewPost.fulfilled, (state, action) => {
+        action.payload.userId = Number(action.payload.userId);
+        action.payload.date = new Date().toISOString();
+        action.payload.reactions = {
+          thumbsUp: 0,
+          wow: 0,
+          heart: 0,
+          rocket: 0,
+          coffee: 0,
+        };
+        console.log(action.payload);
+        state.posts.push(action.payload);
+      });
+  },
 });
 
 export const { postAdded, reactionAdded } = postsSlice.actions;
 
-export const selectAllPosts = (state: { posts: PostState[] }) => state.posts;
+export const selectAllPosts = (state: { posts: PostState }) =>
+  state.posts.posts;
+
+export const getPostsStatus = (state: { posts: PostState }) =>
+  state.posts.status;
+
+export const getPostsError = (state: { posts: PostState }) => state.posts.error;
 
 export default postsSlice.reducer;

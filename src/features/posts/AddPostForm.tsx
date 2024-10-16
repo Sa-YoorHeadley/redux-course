@@ -1,6 +1,6 @@
 import { useState, ChangeEvent, SyntheticEvent } from "react";
 import { useAppDispatch, useAppSelector } from "../../app/hooks";
-import { postAdded } from "./postsSlice";
+import { addNewPost } from "./postsSlice";
 import { selectAllUsers } from "../users/usersSlice";
 
 export const AddPostForm = () => {
@@ -9,23 +9,36 @@ export const AddPostForm = () => {
   const users = useAppSelector(selectAllUsers);
 
   const [title, setTitle] = useState<string>("");
-  const [content, setContent] = useState<string>("");
+  const [body, setBody] = useState<string>("");
   const [userId, setUserId] = useState<string>("");
+  const [status, setStatus] = useState<string>("idle");
 
   const onTitleChange = (event: ChangeEvent<HTMLInputElement>) =>
     setTitle(event.target.value);
-  const onContentChange = (
+  const onBodyChange = (
     event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => setContent(event.target.value);
+  ) => setBody(event.target.value);
   const onAuthorChange = (event: ChangeEvent<HTMLSelectElement>) =>
     setUserId(event.target.value);
+
+  const canSave = [title, body, userId].every(Boolean) && status === "idle";
 
   const onSavePostClicked = (event: SyntheticEvent) => {
     event.preventDefault();
     if (canSave) {
-      dispatch(postAdded(title, content, userId));
-      setTitle("");
-      setContent("");
+      try {
+        setStatus("pending");
+
+        dispatch(addNewPost({ title, body, userId })).unwrap();
+
+        setTitle("");
+        setBody("");
+        setUserId("");
+      } catch (error) {
+        console.error("Failed to save the post", error);
+      } finally {
+        setStatus("idle");
+      }
     }
   };
 
@@ -37,8 +50,6 @@ export const AddPostForm = () => {
     );
   });
 
-  const canSave = Boolean(title) && Boolean(content) && Boolean(userId);
-
   return (
     <section>
       <h2>Add a New Post</h2>
@@ -46,7 +57,6 @@ export const AddPostForm = () => {
         <label htmlFor="author">Post Author:</label>
         <select
           name="author"
-          title="author"
           id="author"
           value={userId}
           onChange={onAuthorChange}
@@ -66,12 +76,12 @@ export const AddPostForm = () => {
           required={true}
         />
 
-        <label htmlFor="content">Post Content:</label>
+        <label htmlFor="body">Post Body:</label>
         <textarea
-          name="content"
-          id="content"
-          value={content}
-          onChange={onContentChange}
+          name="body"
+          id="body"
+          value={body}
+          onChange={onBodyChange}
           required={true}
         />
 
