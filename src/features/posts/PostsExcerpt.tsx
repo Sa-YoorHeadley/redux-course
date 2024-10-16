@@ -1,14 +1,16 @@
-import { Post } from "./postsSlice";
 import { PostAuthor } from "./PostAuthor";
 import { TimeAgo } from "./TimeAgo";
 import { ReactionButtons } from "./ReactionButtons";
 import { Link } from "react-router-dom";
+import { selectPostsById } from "./postsSlice";
+import { useAppSelector } from "../../app/hooks";
 
 type PostsExcerptProps = {
-  post: Post;
+  postId: string;
 };
 
-export const PostsExcerpt = ({ post }: PostsExcerptProps) => {
+export const PostsExcerpt = ({ postId }: PostsExcerptProps) => {
+  const post = useAppSelector((state) => selectPostsById(state, postId));
   return (
     <article>
       <h2>{post.title}</h2>
