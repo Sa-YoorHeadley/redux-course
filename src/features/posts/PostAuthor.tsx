@@ -1,14 +1,23 @@
-import { useAppSelector } from "../../app/hooks";
-import { selectAllUsers } from "../users/usersSlice";
+import { Link } from "react-router-dom";
+import { useGetUsersQuery } from "../users/usersSlice";
 
 type PostAuthorProps = {
   userId?: number;
 };
 
 export const PostAuthor = ({ userId }: PostAuthorProps) => {
-  const users = useAppSelector(selectAllUsers);
+  const { data: users } = useGetUsersQuery(undefined);
 
-  const author = users.find((user) => Number(user.id) === userId);
+  const author = users?.find((user) => Number(user.id) === userId);
 
-  return <span>by {author ? author.name : "Unknown author"}</span>;
+  return (
+    <span>
+      by
+      {author ? (
+        <Link to={`/users/${userId}`}>{author.name}</Link>
+      ) : (
+        "Unknown author"
+      )}
+    </span>
+  );
 };

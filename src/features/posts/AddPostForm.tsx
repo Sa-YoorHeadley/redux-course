@@ -1,19 +1,18 @@
 import { useState, ChangeEvent, SyntheticEvent } from "react";
-import { useAppDispatch, useAppSelector } from "../../app/hooks";
-import { addNewPost } from "./postsSlice";
-import { selectAllUsers } from "../users/usersSlice";
+import { useAddNewPostMutation } from "./postsSlice";
+import { useGetUsersQuery } from "../users/usersSlice";
 import { useNavigate } from "react-router-dom";
 
 export const AddPostForm = () => {
-  const dispatch = useAppDispatch();
+  const [addNewPost, { isLoading }] = useAddNewPostMutation();
   const navigate = useNavigate();
 
-  const users = useAppSelector(selectAllUsers);
+  const {data: users} = useGetUsersQuery(undefined)
+  console.log(users)
 
   const [title, setTitle] = useState<string>("");
   const [body, setBody] = useState<string>("");
   const [userId, setUserId] = useState<string>("");
-  const [status, setStatus] = useState<string>("idle");
 
   const onTitleChange = (event: ChangeEvent<HTMLInputElement>) =>
     setTitle(event.target.value);
@@ -23,29 +22,24 @@ export const AddPostForm = () => {
   const onAuthorChange = (event: ChangeEvent<HTMLSelectElement>) =>
     setUserId(event.target.value);
 
-  const canSave = [title, body, userId].every(Boolean) && status === "idle";
+  const canSave = [title, body, userId].every(Boolean) && !isLoading;
 
-  const onSavePostClicked = (event: SyntheticEvent) => {
+  const onSavePostClicked = async (event: SyntheticEvent) => {
     event.preventDefault();
     if (canSave) {
       try {
-        setStatus("pending");
-
-        dispatch(addNewPost({ title, body, userId })).unwrap();
-
+        await addNewPost({ title, body, userId: Number(userId) }).unwrap();
         setTitle("");
         setBody("");
         setUserId("");
         navigate(`/`);
       } catch (error) {
         console.error("Failed to save the post", error);
-      } finally {
-        setStatus("idle");
       }
     }
   };
 
-  const userOptions = users.map((user) => {
+  const userOptions = users?.map((user) => {
     return (
       <option value={user.id} key={user.id}>
         {user.name}

@@ -1,20 +1,24 @@
 import { useState, ChangeEvent, SyntheticEvent } from "react";
-import { useAppDispatch, useAppSelector } from "../../app/hooks";
-import { selectPostById, updatePost, deletePost } from "./postsSlice";
+import { useAppSelector } from "../../app/hooks";
+import {
+  useDeletePostMutation,
+  selectPostById,
+  useUpdatePostMutation,
+} from "./postsSlice";
 import { selectAllUsers } from "../users/usersSlice";
 import { useParams, useNavigate } from "react-router-dom";
 
 export const EditPostForm = () => {
   const { postId } = useParams();
   const navigate = useNavigate();
-  const dispatch = useAppDispatch();
   const users = useAppSelector(selectAllUsers);
   const post = useAppSelector((state) => selectPostById(state, String(postId)));
+  const [updatePost, { isLoading }] = useUpdatePostMutation();
+  const [deletePost] = useDeletePostMutation();
 
   const [title, setTitle] = useState<string>(post?.title || "");
   const [body, setBody] = useState<string>(post?.body || "");
   const [userId, setUserId] = useState<string>(String(post?.userId) || "");
-  const [status, setStatus] = useState<string>("idle");
 
   if (!post) {
     return (
@@ -32,23 +36,18 @@ export const EditPostForm = () => {
   const onAuthorChange = (event: ChangeEvent<HTMLSelectElement>) =>
     setUserId(event.target.value);
 
-  const canSave = [title, body, userId].every(Boolean) && status === "idle";
+  const canSave = [title, body, userId].every(Boolean) && !isLoading;
 
-  const onSavePostClicked = (event: SyntheticEvent) => {
+  const onSavePostClicked = async (event: SyntheticEvent) => {
     event.preventDefault();
     if (canSave) {
       try {
-        setStatus("pending");
-
-        dispatch(
-          updatePost({
-            id: post.id,
-            title,
-            body,
-            userId: Number(userId),
-            reactions: post.reactions,
-          })
-        ).unwrap();
+        await updatePost({
+          title,
+          body,
+          id: post.id,
+          userId: Number(userId),
+        }).unwrap();
 
         setTitle("");
         setBody("");
@@ -57,23 +56,15 @@ export const EditPostForm = () => {
         navigate(`/post/${postId}`);
       } catch (error) {
         console.error("Failed to save the post", error);
-      } finally {
-        setStatus("idle");
       }
     }
   };
 
-  const onDeletePostClicked = (event: SyntheticEvent) => {
+  const onDeletePostClicked = async (event: SyntheticEvent) => {
     event.preventDefault();
     if (canSave) {
       try {
-        setStatus("pending");
-
-        dispatch(
-          deletePost({
-            id: post.id,
-          })
-        ).unwrap();
+        await deletePost({ id: post.id }).unwrap();
 
         setTitle("");
         setBody("");
@@ -82,8 +73,6 @@ export const EditPostForm = () => {
         navigate(`/`);
       } catch (error) {
         console.error("Failed to delete the post", error);
-      } finally {
-        setStatus("idle");
       }
     }
   };
